@@ -81,7 +81,7 @@ Fonte Pública / API
   Agregações
         |
         v
-    Power BI
+     Metabase
 ```
 
 ---
