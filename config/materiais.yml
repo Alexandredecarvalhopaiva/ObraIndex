@@ -1,0 +1,301 @@
+materiais:
+- material_id: cimento_cp2
+  nome: Cimento Portland CP II
+  categoria: cimento
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: cimento_cp5_ari
+  nome: Cimento Portland CP V-ARI
+  categoria: cimento
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: cal_hidratada
+  nome: Cal hidratada
+  categoria: aglomerantes
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: gesso_po
+  nome: Gesso em pó
+  categoria: aglomerantes
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: areia_fina
+  nome: Areia fina
+  categoria: agregados
+  catmat: null
+  unidade_padrao: m3
+  ativo: false
+- material_id: areia_media
+  nome: Areia média
+  categoria: agregados
+  catmat: null
+  unidade_padrao: m3
+  ativo: false
+- material_id: areia_grossa
+  nome: Areia grossa
+  categoria: agregados
+  catmat: null
+  unidade_padrao: m3
+  ativo: false
+- material_id: brita_0
+  nome: Brita 0
+  categoria: agregados
+  catmat: null
+  unidade_padrao: m3
+  ativo: false
+- material_id: brita_1
+  nome: Brita 1
+  categoria: agregados
+  catmat: null
+  unidade_padrao: m3
+  ativo: false
+- material_id: brita_2
+  nome: Brita 2
+  categoria: agregados
+  catmat: null
+  unidade_padrao: m3
+  ativo: false
+- material_id: pedra_rachao
+  nome: Pedra rachão
+  categoria: agregados
+  catmat: null
+  unidade_padrao: m3
+  ativo: false
+- material_id: bloco_ceramico_8_furos
+  nome: Bloco cerâmico 8 furos
+  categoria: alvenaria
+  catmat: null
+  unidade_padrao: un
+  ativo: false
+- material_id: tijolo_ceramico_macico
+  nome: Tijolo cerâmico maciço
+  categoria: alvenaria
+  catmat: null
+  unidade_padrao: un
+  ativo: false
+- material_id: bloco_concreto_9cm
+  nome: Bloco de concreto 9 cm
+  categoria: alvenaria
+  catmat: null
+  unidade_padrao: un
+  ativo: false
+- material_id: bloco_concreto_14cm
+  nome: Bloco de concreto 14 cm
+  categoria: alvenaria
+  catmat: null
+  unidade_padrao: un
+  ativo: false
+- material_id: bloco_concreto_19cm
+  nome: Bloco de concreto 19 cm
+  categoria: alvenaria
+  catmat: null
+  unidade_padrao: un
+  ativo: false
+- material_id: argamassa_assentamento
+  nome: Argamassa para assentamento
+  categoria: argamassas
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: argamassa_ac1
+  nome: Argamassa colante AC-I
+  categoria: argamassas
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: argamassa_ac2
+  nome: Argamassa colante AC-II
+  categoria: argamassas
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: argamassa_ac3
+  nome: Argamassa colante AC-III
+  categoria: argamassas
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: rejunte_cimenticio
+  nome: Rejunte cimentício
+  categoria: argamassas
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: aco_ca50_8mm
+  nome: Aço CA-50 8 mm
+  categoria: aco
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: aco_ca50_10mm
+  nome: Aço CA-50 10 mm
+  categoria: aco
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: aco_ca50_12_5mm
+  nome: Aço CA-50 12,5 mm
+  categoria: aco
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: aco_ca50_16mm
+  nome: Aço CA-50 16 mm
+  categoria: aco
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: aco_ca60_5mm
+  nome: Aço CA-60 5 mm
+  categoria: aco
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: arame_recozido
+  nome: Arame recozido
+  categoria: aco
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: tela_soldada
+  nome: Tela soldada
+  categoria: aco
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: prego_aco
+  nome: Prego de aço
+  categoria: fixacao
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: compensado_resinado
+  nome: Compensado resinado para construção
+  categoria: madeira
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: tabua_pinus
+  nome: Tábua de madeira / Pinus
+  categoria: madeira
+  catmat: null
+  unidade_padrao: m
+  ativo: false
+- material_id: telha_fibrocimento_6mm
+  nome: Telha de fibrocimento 6 mm
+  categoria: cobertura
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: telha_ceramica
+  nome: Telha cerâmica
+  categoria: cobertura
+  catmat: null
+  unidade_padrao: un
+  ativo: false
+- material_id: manta_asfaltica
+  nome: Manta asfáltica
+  categoria: impermeabilizacao
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: impermeabilizante_cimenticio
+  nome: Impermeabilizante cimentício
+  categoria: impermeabilizacao
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: tinta_acrilica
+  nome: Tinta acrílica
+  categoria: pintura
+  catmat: null
+  unidade_padrao: l
+  ativo: false
+- material_id: massa_corrida_pva
+  nome: Massa corrida PVA
+  categoria: pintura
+  catmat: null
+  unidade_padrao: kg
+  ativo: false
+- material_id: selador_acrilico
+  nome: Selador acrílico
+  categoria: pintura
+  catmat: null
+  unidade_padrao: l
+  ativo: false
+- material_id: piso_ceramico
+  nome: Piso cerâmico
+  categoria: revestimentos
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: porcelanato
+  nome: Porcelanato
+  categoria: revestimentos
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: revestimento_ceramico_parede
+  nome: Revestimento cerâmico para parede
+  categoria: revestimentos
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: drywall_st
+  nome: Placa drywall ST
+  categoria: drywall
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: drywall_ru
+  nome: Placa drywall RU
+  categoria: drywall
+  catmat: null
+  unidade_padrao: m2
+  ativo: false
+- material_id: tubo_pvc_soldavel_25mm
+  nome: Tubo PVC soldável 25 mm
+  categoria: hidraulica
+  catmat: null
+  unidade_padrao: m
+  ativo: false
+- material_id: tubo_pvc_esgoto_50mm
+  nome: Tubo PVC esgoto 50 mm
+  categoria: hidraulica
+  catmat: null
+  unidade_padrao: m
+  ativo: false
+- material_id: tubo_pvc_esgoto_100mm
+  nome: Tubo PVC esgoto 100 mm
+  categoria: hidraulica
+  catmat: null
+  unidade_padrao: m
+  ativo: false
+- material_id: cabo_cobre_1_5mm2
+  nome: Cabo de cobre 1,5 mm²
+  categoria: eletrica
+  catmat: null
+  unidade_padrao: m
+  ativo: false
+- material_id: cabo_cobre_2_5mm2
+  nome: Cabo de cobre 2,5 mm²
+  categoria: eletrica
+  catmat: null
+  unidade_padrao: m
+  ativo: false
+- material_id: eletroduto_corrugado_20mm
+  nome: Eletroduto corrugado 20 mm
+  categoria: eletrica
+  catmat: null
+  unidade_padrao: m
+  ativo: false
+- material_id: disjuntor_monopolar
+  nome: Disjuntor monopolar
+  categoria: eletrica
+  catmat: null
+  unidade_padrao: un
+  ativo: false

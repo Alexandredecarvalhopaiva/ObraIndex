@@ -1,0 +1,851 @@
+ 
+# OBRAINDEX
+# Configurações gerais do pipeline
+
+
+project:
+
+  name: "ObraIndex"
+
+  description: >
+    Plataforma de Engenharia de Dados para análise histórica
+    dos preços de materiais da construção civil brasileira
+    utilizando dados públicos do Compras.gov.br.
+
+  version: "1.0.0"
+
+  environment: "development"
+
+  timezone: "America/Fortaleza"
+
+
+
+ 
+# FONTE DE DADOS
+ 
+
+source:
+
+  name: "Compras.gov.br"
+
+  type: "REST_API"
+
+  # URLs e endpoints ficam armazenados no .env
+  base_url_env: "COMPRAS_GOV_BASE_URL"
+
+  swagger_url_env: "COMPRAS_GOV_SWAGGER_URL"
+
+  material_endpoint_env: "COMPRAS_GOV_MATERIAL_ENDPOINT"
+
+  price_endpoint_env: "COMPRAS_GOV_PRICE_ENDPOINT"
+
+  format: "json"
+
+  encoding: "utf-8"
+
+
+
+ 
+# ESCOPO TEMPORAL
+ 
+
+period:
+
+  # Data inicial da série histórica
+  start_date: "2020-01-01"
+
+  # null significa utilizar a data atual
+  end_date: null
+
+  # Granularidade principal da camada Gold
+  analytical_granularity: "month"
+
+
+
+ 
+# MATERIAIS
+ 
+
+materials:
+
+  # Quantidade pretendida no MVP
+  target_count: 50
+
+  config_file: "config/materiais.yml"
+
+  identifier_field: "codigoItemCatalogo"
+
+  identifier_type: "CATMAT"
+
+  require_active: true
+
+  selection:
+
+    require_catmat: true
+
+    require_valid_unit: true
+
+    require_historical_data: true
+
+    minimum_records: 10
+
+    minimum_year: 2020
+
+    allow_material_replacement: true
+
+
+
+ 
+# EXTRAÇÃO DA API
+ 
+
+extraction:
+
+  request:
+
+    method: "GET"
+
+    timeout_seconds: 60
+
+    verify_ssl: true
+
+
+  pagination:
+
+    enabled: true
+
+    initial_page: 1
+
+    # Será ajustado caso a API defina outro limite.
+    page_size: 500
+
+    stop_on_empty_page: true
+
+
+  retries:
+
+    enabled: true
+
+    max_attempts: 5
+
+    wait_seconds: 5
+
+    exponential_backoff: true
+
+    max_wait_seconds: 60
+
+
+  rate_limit:
+
+    enabled: true
+
+    # Evita excesso de chamadas simultâneas.
+    max_concurrent_requests: 5
+
+    delay_between_requests_seconds: 0.5
+
+
+  response:
+
+    accepted_status_codes:
+      - 200
+
+    retry_status_codes:
+      - 429
+      - 500
+      - 502
+      - 503
+      - 504
+
+
+
+ 
+# ESTRATÉGIA DE CARGA
+ 
+
+load:
+
+  full:
+
+    enabled: true
+
+    start_date: "2020-01-01"
+
+    preserve_raw_data: true
+
+    overwrite_existing: false
+
+
+  incremental:
+
+    enabled: true
+
+    strategy: "watermark"
+
+    watermark_field: "dataHoraAtualizacaoItem"
+
+    fallback_watermark_field: "dataCompra"
+
+    # Reconsulta período anterior para capturar registros
+    # publicados ou alterados com atraso.
+    lookback_days: 30
+
+    detect_updates: true
+
+    use_record_hash: true
+
+    allow_upsert: true
+
+
+  idempotency:
+
+    enabled: true
+
+    deduplicate_before_write: true
+
+    use_technical_key: true
+
+
+
+ 
+# CHAVE TÉCNICA
+ 
+
+technical_key:
+
+  fields:
+    - "idCompra"
+    - "idItemCompra"
+    - "codigoItemCatalogo"
+
+
+
+ 
+# HASH DO REGISTRO
+ 
+
+record_hash:
+
+  enabled: true
+
+  algorithm: "sha256"
+
+  fields:
+    - "idCompra"
+    - "idItemCompra"
+    - "codigoItemCatalogo"
+    - "quantidade"
+    - "precoUnitario"
+    - "dataCompra"
+    - "niFornecedor"
+
+
+
+ 
+# DATA LAKE
+ 
+
+data_lake:
+
+  provider: "MinIO"
+
+  storage_format: "parquet"
+
+  compression: "snappy"
+
+
+  bronze:
+
+    bucket_env: "MINIO_BUCKET_BRONZE"
+
+    path: "compras_gov/precos_material"
+
+    preserve_source_schema: true
+
+    add_ingestion_metadata: true
+
+    partition_by:
+      - "catmat"
+      - "ano_ingestao"
+      - "mes_ingestao"
+
+
+  silver:
+
+    bucket_env: "MINIO_BUCKET_SILVER"
+
+    path: "compras_gov/precos_material"
+
+    partition_by:
+      - "ano"
+      - "mes"
+
+    deduplicate: true
+
+    validate_schema: true
+
+
+  gold:
+
+    bucket_env: "MINIO_BUCKET_GOLD"
+
+    path: "construction_material_prices"
+
+    partition_by:
+      - "ano"
+      - "mes"
+
+
+
+ 
+# METADADOS DE INGESTÃO
+ 
+
+metadata:
+
+  add_fields: true
+
+  fields:
+
+    ingestion_timestamp: "_ingestion_timestamp"
+
+    source: "_source"
+
+    endpoint: "_source_endpoint"
+
+    pipeline_run: "_pipeline_run_id"
+
+    extract_type: "_extract_type"
+
+    record_hash: "_record_hash"
+
+
+
+ 
+# SILVER - TRATAMENTO
+ 
+
+silver:
+
+  normalize_column_names: true
+
+  remove_duplicates: true
+
+  trim_strings: true
+
+  normalize_text_case: false
+
+
+  numeric_fields:
+    - "quantidade"
+    - "precoUnitario"
+
+
+  date_fields:
+    - "dataCompra"
+    - "dataResultado"
+    - "dataHoraAtualizacaoCompra"
+    - "dataHoraAtualizacaoItem"
+
+
+  required_fields:
+    - "codigoItemCatalogo"
+    - "descricaoItem"
+    - "precoUnitario"
+    - "quantidade"
+    - "dataCompra"
+
+
+  derived_columns:
+
+    enabled: true
+
+    fields:
+      - "ano"
+      - "mes"
+      - "ano_mes"
+      - "trimestre"
+      - "semestre"
+      - "regiao"
+      - "valor_total_item"
+      - "material_id"
+
+
+
+ 
+# NORMALIZAÇÃO DE PREÇOS
+ 
+
+price_normalization:
+
+  enabled: true
+
+  preserve_original_values: true
+
+
+  output_fields:
+
+    original_price: "preco_original"
+
+    original_unit: "unidade_original"
+
+    normalized_price: "preco_normalizado"
+
+    normalized_unit: "unidade_normalizada"
+
+
+  reject_unknown_conversion: false
+
+  flag_unknown_conversion: true
+
+
+
+ 
+# OUTLIERS
+ 
+
+outliers:
+
+  enabled: true
+
+  remove_from_silver: false
+
+  preserve_in_bronze: true
+
+  create_flag: true
+
+
+  flag_field: "is_outlier"
+
+  reason_field: "outlier_reason"
+
+
+  methods:
+
+    iqr:
+
+      enabled: true
+
+      multiplier: 1.5
+
+
+    percentile:
+
+      enabled: true
+
+      lower: 0.01
+
+      upper: 0.99
+
+
+  minimum_group_size: 10
+
+
+
+ 
+# DATA QUALITY
+ 
+
+data_quality:
+
+  enabled: true
+
+  fail_pipeline_on_critical_error: true
+
+
+  bronze:
+
+    checks:
+
+      api_response_not_empty: true
+
+      valid_json: true
+
+      expected_schema: true
+
+
+  silver:
+
+    checks:
+
+      catmat_not_null: true
+
+      description_not_null: true
+
+      purchase_date_valid: true
+
+      price_greater_than_zero: true
+
+      quantity_greater_than_zero: true
+
+      valid_state: true
+
+      no_duplicate_technical_key: true
+
+
+  gold:
+
+    checks:
+
+      price_not_negative: true
+
+      purchase_count_greater_than_zero: true
+
+      year_greater_equal_start_year: true
+
+      valid_material_id: true
+
+
+
+ 
+# GOLD - AGREGAÇÕES
+ 
+
+gold:
+
+  main_table: "gold_material_price_monthly"
+
+  regional_table: "gold_material_price_state_monthly"
+
+  material_table: "dim_material"
+
+  date_table: "dim_date"
+
+
+  aggregation:
+
+    dimensions:
+      - "material_id"
+      - "codigoItemCatalogo"
+      - "ano"
+      - "mes"
+      - "ano_mes"
+
+
+    metrics:
+
+      - "preco_medio"
+
+      - "preco_mediano"
+
+      - "preco_medio_ponderado"
+
+      - "preco_minimo"
+
+      - "preco_maximo"
+
+      - "percentil_25"
+
+      - "percentil_75"
+
+      - "desvio_padrao"
+
+      - "coeficiente_variacao"
+
+      - "quantidade_compras"
+
+      - "quantidade_unidades"
+
+      - "quantidade_fornecedores"
+
+      - "quantidade_orgaos"
+
+
+
+ 
+# INDICADORES TEMPORAIS
+ 
+
+indicators:
+
+  monthly_change:
+
+    enabled: true
+
+    field: "variacao_mensal_pct"
+
+
+  yearly_change:
+
+    enabled: true
+
+    periods: 12
+
+    field: "variacao_yoy_pct"
+
+
+  change_since_base:
+
+    enabled: true
+
+    base_date: "2020-01"
+
+    field: "variacao_desde_2020_pct"
+
+
+  moving_average:
+
+    enabled: true
+
+    windows:
+      - 3
+      - 6
+      - 12
+
+
+  volatility:
+
+    enabled: true
+
+    windows:
+      - 6
+      - 12
+
+
+
+ 
+# PRICE SHOCK
+ 
+
+price_shock:
+
+  enabled: true
+
+  method: "standard_deviation"
+
+  standard_deviations: 2
+
+  output_field: "is_price_shock"
+
+
+
+ 
+# OBRAINDEX
+# ÍNDICE EXPERIMENTAL
+ 
+
+obraindex:
+
+  enabled: false
+
+  base_date: "2020-01"
+
+  base_value: 100
+
+  calculation_method: "weighted_index"
+
+  weights_file: null
+
+
+
+ 
+# POSTGRES ANALYTICS / SERVING LAYER
+ 
+
+serving:
+
+  enabled: true
+
+  engine: "postgresql"
+
+  connection_env: "ANALYTICS_DB_URL"
+
+  schema: "obraindex"
+
+
+  tables:
+
+    material_monthly:
+      name: "material_price_monthly"
+
+    material_state_monthly:
+      name: "material_price_state_monthly"
+
+    material_dimension:
+      name: "dim_material"
+
+    date_dimension:
+      name: "dim_date"
+
+
+
+ 
+# METABASE
+ 
+
+metabase:
+
+  enabled: true
+
+  serving_schema: "obraindex"
+
+  default_table: "material_price_monthly"
+
+
+
+ 
+# AIRFLOW
+ 
+
+airflow:
+
+  dag:
+
+    dag_id: "obraindex_prices_daily"
+
+    schedule: "@daily"
+
+    catchup: false
+
+    max_active_runs: 1
+
+
+  retries:
+
+    retries: 3
+
+    retry_delay_minutes: 5
+
+
+  tasks:
+
+    - "load_material_config"
+
+    - "validate_api"
+
+    - "extract_prices"
+
+    - "save_bronze"
+
+    - "detect_new_records"
+
+    - "transform_silver"
+
+    - "data_quality"
+
+    - "build_gold"
+
+    - "publish_analytics"
+
+    - "update_watermark"
+
+
+
+ 
+# WATERMARK
+ 
+
+watermark:
+
+  enabled: true
+
+  storage: "postgresql"
+
+  schema: "obraindex_control"
+
+  table: "pipeline_watermark"
+
+
+  fields:
+
+    material_id: "material_id"
+
+    catmat: "codigo_catmat"
+
+    last_purchase_date: "ultima_data_compra"
+
+    last_ingestion: "ultima_data_ingestao"
+
+    last_run: "ultima_execucao"
+
+    status: "status"
+
+
+  update_only_on_success: true
+
+
+
+ 
+# AUDITORIA
+ 
+
+audit:
+
+  enabled: true
+
+  storage: "postgresql"
+
+  schema: "obraindex_control"
+
+  table: "pipeline_execution"
+
+
+  metrics:
+
+    - "run_id"
+
+    - "material_id"
+
+    - "catmat"
+
+    - "inicio"
+
+    - "fim"
+
+    - "duracao_segundos"
+
+    - "paginas_consultadas"
+
+    - "registros_recebidos"
+
+    - "registros_novos"
+
+    - "registros_atualizados"
+
+    - "registros_duplicados"
+
+    - "registros_invalidos"
+
+    - "outliers"
+
+    - "watermark_anterior"
+
+    - "watermark_novo"
+
+    - "status"
+
+    - "erro"
+
+
+
+ 
+# LOGGING
+ 
+
+logging:
+
+  level: "INFO"
+
+  format: "json"
+
+  include_timestamp: true
+
+  include_pipeline_run_id: true
+
+  include_material_id: true
+
+
+
+ 
+# DEV / DEBUG
+ 
+
+development:
+
+  debug: false
+
+  save_api_response_sample: false
+
+  sample_records: 100
+
+  allow_partial_material_execution: true

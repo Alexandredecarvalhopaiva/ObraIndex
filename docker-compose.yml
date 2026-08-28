@@ -1,0 +1,840 @@
+name: ${COMPOSE_PROJECT_NAME}
+
+# ============================================================
+# OBRAINDEX
+# Docker Compose
+# ============================================================
+
+
+# ============================================================
+# CONFIGURAÇÃO COMUM DO AIRFLOW
+# ============================================================
+
+x-airflow-common: &airflow-common
+
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+  image: ${AIRFLOW_CUSTOM_IMAGE_NAME}
+
+  env_file:
+    - .env
+
+  environment:
+
+    # --------------------------------------------------------
+    # AIRFLOW
+    # --------------------------------------------------------
+
+    AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
+
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+      postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD_URL}@${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT}/${AIRFLOW_DB_NAME}
+
+    AIRFLOW__CORE__LOAD_EXAMPLES: ${AIRFLOW_LOAD_EXAMPLES}
+
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: ${AIRFLOW_DAGS_PAUSED_AT_CREATION}
+
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: ${AIRFLOW_EXECUTION_API_URL}
+
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: "${AIRFLOW_USER}:admin"
+
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: >-
+      /opt/airflow/config/simple_auth_passwords.json
+
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
+
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+
+
+    # --------------------------------------------------------
+    # OBRAINDEX
+    # --------------------------------------------------------
+
+    OBRAINDEX_ENV: ${OBRAINDEX_ENV}
+
+    OBRAINDEX_START_DATE: ${OBRAINDEX_START_DATE}
+
+    OBRAINDEX_BASE_PERIOD: ${OBRAINDEX_BASE_PERIOD}
+
+    OBRAINDEX_DEFAULT_LOAD_TYPE: ${OBRAINDEX_DEFAULT_LOAD_TYPE}
+
+    OBRAINDEX_MATERIALS_FILE: ${OBRAINDEX_MATERIALS_FILE}
+
+
+    # --------------------------------------------------------
+    # COMPRAS.GOV.BR
+    # --------------------------------------------------------
+
+    COMPRAS_GOV_BASE_URL: ${COMPRAS_GOV_BASE_URL}
+
+    COMPRAS_GOV_SWAGGER_URL: ${COMPRAS_GOV_SWAGGER_URL}
+
+    COMPRAS_GOV_MATERIAL_ENDPOINT: ${COMPRAS_GOV_MATERIAL_ENDPOINT}
+
+    COMPRAS_GOV_PRICE_ENDPOINT: ${COMPRAS_GOV_PRICE_ENDPOINT}
+
+
+    # --------------------------------------------------------
+    # API
+    # --------------------------------------------------------
+
+    API_TIMEOUT_SECONDS: ${API_TIMEOUT_SECONDS}
+
+    API_PAGE_SIZE: ${API_PAGE_SIZE}
+
+    API_MAX_ATTEMPTS: ${API_MAX_ATTEMPTS}
+
+    API_REQUEST_DELAY_SECONDS: ${API_REQUEST_DELAY_SECONDS}
+
+
+    # --------------------------------------------------------
+    # MINIO
+    # --------------------------------------------------------
+
+    MINIO_INTERNAL_ENDPOINT: ${MINIO_INTERNAL_ENDPOINT}
+
+    MINIO_INTERNAL_URL: ${MINIO_INTERNAL_URL}
+
+    MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+
+    MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+
+    MINIO_SECURE: ${MINIO_SECURE}
+
+    MINIO_BUCKET_BRONZE: ${MINIO_BUCKET_BRONZE}
+
+    MINIO_BUCKET_SILVER: ${MINIO_BUCKET_SILVER}
+
+    MINIO_BUCKET_GOLD: ${MINIO_BUCKET_GOLD}
+
+
+    # --------------------------------------------------------
+    # POSTGRES ANALYTICS
+    # --------------------------------------------------------
+
+    ANALYTICS_DB_HOST: ${ANALYTICS_DB_HOST}
+
+    ANALYTICS_DB_PORT: ${ANALYTICS_DB_PORT}
+
+    ANALYTICS_DB_NAME: ${ANALYTICS_DB_NAME}
+
+    ANALYTICS_DB_USER: ${ANALYTICS_DB_USER}
+
+    ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD}
+
+    ANALYTICS_DB_SCHEMA: ${ANALYTICS_DB_SCHEMA}
+
+
+    # --------------------------------------------------------
+    # SILVER
+    # --------------------------------------------------------
+
+    SILVER_OUTLIER_IQR_MULTIPLIER: ${SILVER_OUTLIER_IQR_MULTIPLIER}
+
+    SILVER_OUTLIER_MIN_GROUP_SIZE: ${SILVER_OUTLIER_MIN_GROUP_SIZE}
+
+
+    # --------------------------------------------------------
+    # GOLD
+    # --------------------------------------------------------
+
+    GOLD_EXCLUDE_OUTLIERS: ${GOLD_EXCLUDE_OUTLIERS}
+
+    GOLD_PRICE_SHOCK_STD: ${GOLD_PRICE_SHOCK_STD}
+
+
+    # --------------------------------------------------------
+    # PYTHON / LOG
+    # --------------------------------------------------------
+
+    PYTHONPATH: ${PYTHONPATH}
+
+    LOG_LEVEL: ${LOG_LEVEL}
+
+    TZ: ${TZ}
+
+
+  volumes:
+
+    - ./airflow/dags:/opt/airflow/dags
+
+    - ./airflow/logs:/opt/airflow/logs
+
+    - ./airflow/plugins:/opt/airflow/plugins
+
+    - ./airflow/config:/opt/airflow/config
+
+    - ./src:/opt/airflow/src
+
+    - ./config:/opt/airflow/project-config
+
+
+  user: "${AIRFLOW_UID}:0"
+
+  networks:
+    - obraindex-network
+
+
+# ============================================================
+# SERVIÇOS
+# ============================================================
+
+services:
+
+
+  # ==========================================================
+  # POSTGRESQL
+  #
+  # Armazena:
+  # - metadata Airflow
+  # - metadata Metabase
+  # - banco analítico ObraIndex
+  # ==========================================================
+
+  postgres:
+
+    image: ${POSTGRES_IMAGE}
+
+    container_name: obraindex-postgres
+
+    hostname: ${POSTGRES_HOST}
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+
+      POSTGRES_USER: ${POSTGRES_USER}
+
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+      POSTGRES_DB: ${POSTGRES_DEFAULT_DB}
+
+      TZ: ${TZ}
+
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT}:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DEFAULT_DB}"
+        ]
+
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    networks:
+      - obraindex-network
+
+
+
+  # ==========================================================
+  # CRIAÇÃO DOS DATABASES
+  # ==========================================================
+
+  db-init:
+
+    image: ${POSTGRES_IMAGE}
+
+    container_name: obraindex-db-init
+
+    env_file:
+      - .env
+
+    depends_on:
+
+      postgres:
+        condition: service_healthy
+
+    environment:
+
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+
+    entrypoint:
+      - /bin/bash
+      - -c
+
+    command:
+      - |
+
+        set -e
+
+        echo "=========================================="
+        echo " OBRAINDEX - DATABASE INITIALIZATION"
+        echo "=========================================="
+
+        for db in \
+          "$${AIRFLOW_DB_NAME}" \
+          "$${METABASE_DB_NAME}" \
+          "$${ANALYTICS_DB_NAME}"
+
+        do
+
+          echo "Verificando database: $${db}"
+
+          EXISTS=$$(psql \
+            -h "$${POSTGRES_HOST}" \
+            -p "$${POSTGRES_PORT}" \
+            -U "$${POSTGRES_USER}" \
+            -d "$${POSTGRES_DEFAULT_DB}" \
+            -tAc "SELECT 1 FROM pg_database WHERE datname='$${db}'")
+
+          if [ "$${EXISTS}" != "1" ]; then
+
+            echo "Criando database: $${db}"
+
+            psql \
+              -h "$${POSTGRES_HOST}" \
+              -p "$${POSTGRES_PORT}" \
+              -U "$${POSTGRES_USER}" \
+              -d "$${POSTGRES_DEFAULT_DB}" \
+              -c "CREATE DATABASE \"$${db}\";"
+
+          else
+
+            echo "Database $${db} já existe."
+
+          fi
+
+        done
+
+        echo "=========================================="
+        echo " Databases configurados"
+        echo "=========================================="
+
+    networks:
+      - obraindex-network
+
+
+
+  # ==========================================================
+  # MINIO
+  #
+  # Data Lake:
+  # Bronze
+  # Silver
+  # Gold
+  # ==========================================================
+
+  minio:
+
+    image: ${MINIO_IMAGE}
+
+    container_name: obraindex-minio
+
+    hostname: ${MINIO_HOST}
+
+    restart: unless-stopped
+
+    command: >
+      server /data
+      --console-address ":9001"
+
+    env_file:
+      - .env
+
+    environment:
+
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+
+    ports:
+
+      - "${MINIO_API_PORT}:9000"
+
+      - "${MINIO_CONSOLE_PORT}:9001"
+
+    volumes:
+
+      - minio-data:/data
+
+    healthcheck:
+
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:9000/minio/health/live || exit 1"
+        ]
+
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    networks:
+      - obraindex-network
+
+
+
+  # ==========================================================
+  # MINIO INIT
+  #
+  # Cria os buckets automaticamente.
+  # ==========================================================
+
+  minio-init:
+
+    image: ${MINIO_MC_IMAGE}
+
+    container_name: obraindex-minio-init
+
+    env_file:
+      - .env
+
+    depends_on:
+
+      minio:
+        condition: service_healthy
+
+    entrypoint: >
+      /bin/sh -c "
+
+      echo '==========================================';
+
+      echo ' OBRAINDEX - MINIO INITIALIZATION';
+
+      echo '==========================================';
+
+
+      mc alias set obraindex
+      $${MINIO_INTERNAL_URL}
+      $${MINIO_ROOT_USER}
+      $${MINIO_ROOT_PASSWORD};
+
+
+      echo 'Criando bucket Bronze...';
+
+      mc mb
+      --ignore-existing
+      obraindex/$${MINIO_BUCKET_BRONZE};
+
+
+      echo 'Criando bucket Silver...';
+
+      mc mb
+      --ignore-existing
+      obraindex/$${MINIO_BUCKET_SILVER};
+
+
+      echo 'Criando bucket Gold...';
+
+      mc mb
+      --ignore-existing
+      obraindex/$${MINIO_BUCKET_GOLD};
+
+
+      echo 'Buckets disponíveis:';
+
+      mc ls obraindex;
+
+
+      echo '==========================================';
+
+      echo ' MinIO configurado';
+
+      echo '==========================================';
+
+
+      exit 0;
+
+      "
+
+    networks:
+      - obraindex-network
+
+
+
+  # ==========================================================
+  # AIRFLOW INIT
+  # ==========================================================
+
+  airflow-init:
+
+    <<: *airflow-common
+
+    container_name: obraindex-airflow-init
+
+    depends_on:
+
+      postgres:
+        condition: service_healthy
+
+      db-init:
+        condition: service_completed_successfully
+
+      minio:
+        condition: service_healthy
+
+      minio-init:
+        condition: service_completed_successfully
+
+    command:
+
+      - bash
+
+      - -c
+
+      - |
+
+        set -e
+
+        echo "=========================================="
+        echo " OBRAINDEX - AIRFLOW INITIALIZATION"
+        echo "=========================================="
+
+        mkdir -p /opt/airflow/config
+
+        echo "Configurando usuário do Airflow..."
+
+        printf '{"%s":"%s"}\n' \
+          "$${AIRFLOW_USER}" \
+          "$${AIRFLOW_PASSWORD}" \
+          > /opt/airflow/config/simple_auth_passwords.json
+
+        echo "Executando migrations..."
+
+        airflow db migrate
+
+        echo "Validando database..."
+
+        airflow db check
+
+        echo "=========================================="
+        echo " Airflow configurado"
+        echo "=========================================="
+
+
+
+  # ==========================================================
+  # AIRFLOW API SERVER
+  #
+  # Interface Web + API REST
+  # ==========================================================
+
+  airflow-api-server:
+
+    <<: *airflow-common
+
+    container_name: obraindex-airflow-api-server
+
+    hostname: ${AIRFLOW_HOST}
+
+    restart: unless-stopped
+
+    command: api-server
+
+    ports:
+      - "${AIRFLOW_PORT}:8080"
+
+    depends_on:
+
+      airflow-init:
+        condition: service_completed_successfully
+
+      postgres:
+        condition: service_healthy
+
+      minio:
+        condition: service_healthy
+
+    healthcheck:
+
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "http://localhost:8080/api/v2/monitor/health"
+        ]
+
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+
+
+  # ==========================================================
+  # AIRFLOW SCHEDULER
+  # ==========================================================
+
+  airflow-scheduler:
+
+    <<: *airflow-common
+
+    container_name: obraindex-airflow-scheduler
+
+    hostname: airflow-scheduler
+
+    restart: unless-stopped
+
+    command: scheduler
+
+    depends_on:
+
+      airflow-init:
+        condition: service_completed_successfully
+
+      airflow-api-server:
+        condition: service_healthy
+
+      postgres:
+        condition: service_healthy
+
+      minio:
+        condition: service_healthy
+
+
+
+  # ==========================================================
+  # AIRFLOW DAG PROCESSOR
+  # ==========================================================
+
+  airflow-dag-processor:
+
+    <<: *airflow-common
+
+    container_name: obraindex-airflow-dag-processor
+
+    hostname: airflow-dag-processor
+
+    restart: unless-stopped
+
+    command: dag-processor
+
+    depends_on:
+
+      airflow-init:
+        condition: service_completed_successfully
+
+      airflow-api-server:
+        condition: service_healthy
+
+      postgres:
+        condition: service_healthy
+
+
+
+  # ==========================================================
+  # AIRFLOW TRIGGERER
+  # ==========================================================
+
+  airflow-triggerer:
+
+    <<: *airflow-common
+
+    container_name: obraindex-airflow-triggerer
+
+    hostname: airflow-triggerer
+
+    restart: unless-stopped
+
+    command: triggerer
+
+    depends_on:
+
+      airflow-init:
+        condition: service_completed_successfully
+
+      airflow-api-server:
+        condition: service_healthy
+
+      postgres:
+        condition: service_healthy
+
+
+
+  # ==========================================================
+  # JUPYTER LAB
+  #
+  # Exploração:
+  # - CATMAT
+  # - API Compras.gov.br
+  # - Profiling
+  # - Validação
+  # ==========================================================
+
+  jupyter:
+
+    image: ${JUPYTER_IMAGE}
+
+    container_name: obraindex-jupyter
+
+    hostname: ${JUPYTER_HOST}
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+
+      JUPYTER_ENABLE_LAB: "yes"
+
+      OBRAINDEX_ENV: ${OBRAINDEX_ENV}
+
+      OBRAINDEX_START_DATE: ${OBRAINDEX_START_DATE}
+
+      COMPRAS_GOV_BASE_URL: ${COMPRAS_GOV_BASE_URL}
+
+      COMPRAS_GOV_MATERIAL_ENDPOINT: ${COMPRAS_GOV_MATERIAL_ENDPOINT}
+
+      COMPRAS_GOV_PRICE_ENDPOINT: ${COMPRAS_GOV_PRICE_ENDPOINT}
+
+      MINIO_INTERNAL_ENDPOINT: ${MINIO_INTERNAL_ENDPOINT}
+
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+
+      MINIO_SECURE: ${MINIO_SECURE}
+
+      MINIO_BUCKET_BRONZE: ${MINIO_BUCKET_BRONZE}
+
+      MINIO_BUCKET_SILVER: ${MINIO_BUCKET_SILVER}
+
+      MINIO_BUCKET_GOLD: ${MINIO_BUCKET_GOLD}
+
+      ANALYTICS_DB_HOST: ${ANALYTICS_DB_HOST}
+
+      ANALYTICS_DB_PORT: ${ANALYTICS_DB_PORT}
+
+      ANALYTICS_DB_NAME: ${ANALYTICS_DB_NAME}
+
+      ANALYTICS_DB_USER: ${ANALYTICS_DB_USER}
+
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD}
+
+      TZ: ${TZ}
+
+    command: >
+      bash -lc "
+      pip install --quiet
+      pandas
+      numpy
+      pyarrow
+      requests
+      python-dotenv
+      PyYAML
+      minio
+      psycopg2-binary
+      SQLAlchemy
+      &&
+      start-notebook.py
+      --ServerApp.token='$${JUPYTER_TOKEN}'
+      "
+
+    ports:
+      - "${JUPYTER_PORT}:8888"
+
+    volumes:
+
+      - ./notebooks:/home/jovyan/work/notebooks
+
+      - ./src:/home/jovyan/work/src
+
+      - ./config:/home/jovyan/work/config
+
+    depends_on:
+
+      postgres:
+        condition: service_healthy
+
+      minio:
+        condition: service_healthy
+
+      minio-init:
+        condition: service_completed_successfully
+
+    networks:
+      - obraindex-network
+
+
+
+  # ==========================================================
+  # METABASE
+  #
+  # Visualização da camada Gold publicada no PostgreSQL
+  # ==========================================================
+
+  metabase:
+
+    image: ${METABASE_IMAGE}
+
+    container_name: obraindex-metabase
+
+    hostname: ${METABASE_HOST}
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+
+      MB_DB_TYPE: postgres
+
+      MB_DB_DBNAME: ${METABASE_DB_NAME}
+
+      MB_DB_PORT: ${METABASE_DB_PORT}
+
+      MB_DB_USER: ${METABASE_DB_USER}
+
+      MB_DB_PASS: ${METABASE_DB_PASSWORD}
+
+      MB_DB_HOST: ${METABASE_DB_HOST}
+
+      JAVA_TIMEZONE: ${TZ}
+
+    ports:
+      - "${METABASE_PORT}:3000"
+
+    depends_on:
+
+      postgres:
+        condition: service_healthy
+
+      db-init:
+        condition: service_completed_successfully
+
+    networks:
+      - obraindex-network
+
+
+# ============================================================
+# VOLUMES
+# ============================================================
+
+volumes:
+
+  postgres-data:
+    name: obraindex-postgres-data
+
+  minio-data:
+    name: obraindex-minio-data
+
+
+# ============================================================
+# NETWORK
+# ============================================================
+
+networks:
+
+  obraindex-network:
+
+    name: obraindex-network
+
+    driver: bridge
