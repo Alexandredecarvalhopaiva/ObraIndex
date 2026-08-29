@@ -1,247 +1,272 @@
-# ObraIndex
+# Arquitetura do ObraIndex
 
-**Inteligência de Dados para Custos da Construção Civil**  
-*Da obra ao dado. Do dado à decisão.*
+O **ObraIndex** é um projeto de Engenharia de Dados aplicado à análise de preços de materiais da construção civil. Sua arquitetura organiza o fluxo desde a extração dos dados públicos do **Compras.gov.br** até a disponibilização de indicadores analíticos no **Metabase**.
 
-## Sobre o projeto
+## Visão geral da arquitetura
 
-O **ObraIndex** é um projeto de Engenharia de Dados criado para analisar a evolução histórica dos custos da construção civil brasileira a partir de dados públicos.
+<p align="center">
+  <img src="docs/images/arquitetura-obraindex.png" alt="Arquitetura do ObraIndex" width="100%">
+</p>
 
-A proposta é construir um pipeline completo de dados, desde a ingestão até a visualização, utilizando uma arquitetura em camadas **Bronze, Silver e Gold**, armazenamento em **Parquet**, cargas **FULL e incrementais**, orquestração com **Apache Airflow** e consumo final em **Power BI**.
+O fluxo principal da solução pode ser resumido como:
 
-O projeto conecta dois universos que se complementam: **Engenharia Civil** e **Engenharia de Dados**.
+**Compras.gov.br → Airflow → Bronze / Silver / Gold → MinIO → PostgreSQL → Metabase**
 
----
-
-## Problema de negócio
-
-Os custos da construção civil variam ao longo do tempo em função de fatores como:
-
-- preços de materiais;
-- custo de mão de obra;
-- inflação;
-- diferenças regionais;
-- oferta e demanda;
-- alterações econômicas.
-
-O ObraIndex busca estruturar esses dados de forma histórica e analítica para responder perguntas como:
-
-- Quais materiais tiveram maior aumento de preço?
-- Como o custo da mão de obra evoluiu ao longo do tempo?
-- Quais itens apresentaram maior volatilidade?
-- Como os custos variam entre estados e regiões?
-- Qual foi a variação percentual de determinado item entre dois períodos?
+A arquitetura utiliza os princípios da **Medallion Architecture**, separando o processamento em três níveis — Bronze, Silver e Gold — para aumentar a rastreabilidade, qualidade e capacidade analítica dos dados.
 
 ---
 
-## Objetivo do MVP
+## 1.  Fonte de dados — Compras.gov.br
 
-Construir um pipeline de Engenharia de Dados capaz de:
+A origem dos dados é a **API pública do Compras.gov.br**.
 
-- consumir dados públicos da construção civil;
-- realizar extração via API;
-- armazenar dados em formato Parquet;
-- implementar as camadas Bronze, Silver e Gold;
-- executar carga FULL inicial;
-- executar cargas incrementais;
-- controlar incrementalidade por watermark;
-- orquestrar o pipeline com Apache Airflow;
-- armazenar os dados em MinIO;
-- gerar indicadores históricos de custos;
-- disponibilizar os resultados para análise em Power BI.
+O pipeline realiza requisições HTTP aos endpoints utilizados pelo projeto para coletar informações relacionadas aos materiais e aos registros de compras públicas.
 
----
+A ingestão contempla mecanismos como:
 
-## Arquitetura
-
-```text
-Fonte Pública / API
-        |
-        v
-      Python
-        |
-        v
- Apache Airflow
-        |
-        v
-      MinIO
-        |
-        v
-     Bronze
- Dados Brutos
-    Parquet
-        |
-        v
-     Silver
- Dados Tratados
-        |
-        v
-      Gold
- Indicadores e
-  Agregações
-        |
-        v
-     Metabase
-```
-
----
-
-## Camadas de dados
-
-### Bronze
-
-Responsável por armazenar os dados no formato mais próximo possível da origem.
-
-Principais características:
-
-- dados brutos;
-- preservação do histórico;
-- armazenamento em Parquet;
-- possibilidade de reprocessamento;
-- particionamento por data.
-
-### Silver
-
-Responsável pela limpeza, padronização e qualidade dos dados.
-
-Principais tratamentos:
-
-- tipagem;
-- remoção de duplicidades;
-- tratamento de valores nulos;
-- padronização de datas;
-- padronização de unidades;
-- validação de dados;
-- aplicação de regras de negócio.
-
-### Gold
-
-Responsável pela criação das estruturas analíticas utilizadas em dashboards e análises.
-
-Exemplos de indicadores:
-
-- preço médio por item;
-- variação mensal;
-- variação anual;
-- evolução histórica;
-- ranking de maiores aumentos;
-- comparação regional;
-- custo médio de mão de obra.
-
----
-
-## Estratégia de carga
-
-### Carga FULL
-
-A primeira execução do pipeline deverá carregar todo o conjunto de dados disponível.
-
-```text
-API -> Python -> Parquet -> MinIO -> Bronze
-```
-
-### Carga incremental
-
-Após a carga inicial, o pipeline deverá buscar apenas novos registros ou registros atualizados.
-
-O controle será realizado através de um **watermark**, registrando até qual ponto os dados foram processados.
-
----
-
-## Tecnologias
-
-- **Python**
-- **Pandas**
-- **NumPy**
-- **PyArrow**
-- **Requests**
-- **SQLAlchemy**
-- **Apache Airflow**
-- **MinIO**
-- **Parquet**
-- **Docker**
-- **Docker Compose**
-- **Power BI**
-- **Git**
-- **GitHub**
-- **VS Code**
-- **Jupyter Notebook**
-
----
-
-## Roadmap do MVP
-
-### Sprint 1 — Fundação + Ingestão + Bronze
-- Estrutura do repositório;
-- definição da fonte de dados;
-- teste da API;
-- criação do script de ingestão;
-- configuração do MinIO;
-- primeiro arquivo Parquet;
-- primeira carga Bronze.
-
-### Sprint 2 — Silver + Qualidade
-- leitura da Bronze;
-- limpeza e padronização;
-- tipagem;
-- tratamento de nulos;
-- remoção de duplicidades;
-- validações;
-- gravação da Silver.
-
-### Sprint 3  — Gold + Incremental
-- definição dos indicadores;
-- criação das agregações;
-- implementação da Gold;
+- paginação;
+- tratamento de erros HTTP;
+- retries;
+- exponential backoff;
+- carga histórica;
 - carga incremental;
-- watermark.
+- controle temporal por watermark.
 
-### Sprint 4  — Airflow + Power BI
-- criação da DAG;
-- automação do pipeline;
-- testes de dependências;
-- criação do dashboard inicial.
-
-### Sprint 5  — Revisão
-- revisão do pipeline;
-- testes FULL e incremental;
-- documentação;
-- diagrama de arquitetura;
-- preparação da apresentação.
+Os dados recebidos da API constituem a entrada da camada Bronze.
 
 ---
 
-## Evolução futura
+## 2.  Orquestração e processamento — Apache Airflow
 
-Após a conclusão do MVP, o ObraIndex poderá evoluir para uma análise aplicada de orçamento de obras.
+O **Apache Airflow** é responsável pela orquestração do pipeline.
 
-Exemplo:
+A execução organiza sequencialmente as etapas de processamento:
 
-> Quanto custaria hoje uma obra que foi orçada em determinado ano, utilizando preços históricos de materiais, serviços e mão de obra?
+```text
+Validação do ambiente
+        ↓
+Validação das conexões
+        ↓
+Bronze — Extração
+        ↓
+Silver — Transformação
+        ↓
+Gold — Agregação
+        ↓
+Persistência dos watermarks
+        ↓
+Resumo da execução
+```
 
-Possíveis aplicações futuras:
-
-- UBS;
-- UPA;
-- escolas;
-- habitações;
-- edificações públicas;
-
+Essa abordagem permite automatizar o pipeline, controlar dependências entre tarefas, acompanhar execuções e identificar eventuais falhas durante o processamento.
 
 ---
 
-## Motivação
+## 3.  Camada Bronze — Dados brutos
 
-O ObraIndex foi idealizado como um projeto que une conhecimento de **Engenharia Civil** com práticas modernas de **Engenharia de Dados**.
+A camada **Bronze** representa o primeiro estágio da arquitetura Medallion.
 
-Mais do que construir um pipeline, o objetivo é demonstrar como dados públicos podem ser organizados, tratados e transformados em informação útil para análise de custos da construção civil.
+Sua principal responsabilidade é realizar a ingestão e preservar os dados provenientes da fonte com o mínimo possível de transformação.
+
+Principais responsabilidades:
+
+- consumo da API do Compras.gov.br;
+- extração dos registros;
+- preservação dos dados de origem;
+- armazenamento dos dados brutos;
+- registro de metadados de ingestão;
+- suporte às cargas FULL e incrementais.
+
+Na arquitetura apresentada, os dados brutos são representados em **JSON** e armazenados no Data Lake.
 
 ---
 
-## Status
+## 4.  Camada Silver — Dados tratados
 
-Em desenvolvimento — MVP**
+A camada **Silver** recebe os dados provenientes da Bronze e executa os tratamentos necessários para torná-los consistentes e adequados ao processamento analítico.
 
-O repositório será desenvolvido inicialmente de forma privada e poderá ser disponibilizado publicamente após a conclusão e revisão da primeira versão.
+Entre as operações estão:
 
+- padronização de nomes de colunas;
+- tipagem dos dados;
+- tratamento de valores numéricos;
+- normalização de datas;
+- normalização de códigos de materiais;
+- deduplicação;
+- validações de qualidade;
+- identificação e tratamento de registros inválidos;
+- tratamento analítico de outliers;
+- enriquecimento dos dados.
 
+Após o tratamento, os dados são persistidos em formato **Apache Parquet**.
+
+---
+
+## 5.  Camada Gold — Dados analíticos
+
+A camada **Gold** transforma os dados tratados em estruturas voltadas para análise e consumo.
+
+Ela concentra agregações e indicadores como:
+
+- preço médio;
+- preço mediano;
+- preço mínimo e máximo;
+- preço médio ponderado;
+- percentis;
+- desvio padrão;
+- coeficiente de variação;
+- quantidade de compras;
+- quantidade de fornecedores;
+- análises temporais;
+- comparações regionais;
+- variações mensais e anuais;
+- volatilidade.
+
+Os dados Gold são armazenados em **Parquet** no Data Lake e os resultados destinados ao consumo analítico são disponibilizados no PostgreSQL.
+
+---
+
+## 6.  Data Lake — MinIO
+
+O **MinIO** funciona como Data Lake do ObraIndex.
+
+Ele centraliza o armazenamento dos dados processados pelo pipeline e mantém a separação lógica entre as camadas da arquitetura:
+
+```text
+MinIO
+│
+├── Bronze
+│   └── Dados brutos
+│
+├── Silver
+│   └── Dados tratados
+│
+└── Gold
+    └── Dados analíticos
+```
+
+O uso de armazenamento de objetos permite desacoplar processamento e armazenamento e manter os dados disponíveis para reprocessamentos e novas análises.
+
+---
+
+## 7.  Banco analítico — PostgreSQL
+
+O **PostgreSQL** funciona como camada de dados para consumo analítico.
+
+Enquanto o MinIO preserva os dados das diferentes etapas do Data Lake, o PostgreSQL disponibiliza estruturas da camada Gold de forma adequada para consultas SQL e ferramentas de Business Intelligence.
+
+O fluxo é:
+
+```text
+Gold
+  ↓
+PostgreSQL
+  ↓
+Consultas SQL
+  ↓
+Metabase
+```
+
+Essa separação evita que a ferramenta de BI precise consultar diretamente os arquivos armazenados no Data Lake.
+
+---
+
+## 8.  Visualização e BI — Metabase
+
+O **Metabase** representa a camada final de consumo.
+
+Ele consulta os dados analíticos disponibilizados no PostgreSQL e permite construir dashboards para exploração das informações produzidas pelo pipeline.
+
+Entre as análises previstas pela arquitetura estão:
+
+- KPIs e indicadores;
+- evolução histórica dos preços;
+- análise temporal;
+- comparação regional;
+- comportamento dos materiais;
+- identificação de variações relevantes.
+
+---
+
+## Fluxo completo
+
+```text
+API pública Compras.gov.br
+            │
+            ▼
+      Apache Airflow
+            │
+            ▼
+          BRONZE
+       Dados brutos
+            │
+            ▼
+           MinIO
+            │
+            ▼
+          SILVER
+      Dados tratados
+            │
+            ▼
+           MinIO
+            │
+            ▼
+           GOLD
+     Dados analíticos
+        │       │
+        ▼       ▼
+      MinIO  PostgreSQL
+                │
+                ▼
+             Metabase
+                │
+                ▼
+       Dashboards e KPIs
+```
+
+---
+
+## Stack tecnológica
+
+| Componente | Tecnologia | Responsabilidade |
+|---|---|---|
+| Linguagem | **Python** | Extração, transformação e processamento |
+| Orquestração | **Apache Airflow** | Automação e gerenciamento do pipeline |
+| Data Lake | **MinIO** | Armazenamento de objetos |
+| Formato analítico | **Apache Parquet** | Persistência eficiente dos dados tratados |
+| Banco analítico | **PostgreSQL** | Serving layer e consultas SQL |
+| Business Intelligence | **Metabase** | Dashboards e indicadores |
+| Infraestrutura | **Docker / Docker Compose** | Containerização dos serviços |
+| Consulta | **SQL** | Exploração e consumo dos dados |
+
+---
+
+## Classificação arquitetural
+
+O ObraIndex possui uma arquitetura de dados baseada em **Data Lake com padrão Medallion**, complementada por uma camada relacional de serving.
+
+O **MinIO** mantém os dados nas diferentes etapas do pipeline, enquanto o **PostgreSQL** recebe os dados analíticos destinados ao consumo.
+
+Essa organização combina:
+
+**Data Lake + Medallion Architecture + Analytical Serving Layer**
+
+e estabelece uma separação clara entre **ingestão, armazenamento, tratamento, agregação e visualização**.
+
+---
+
+## Objetivo da arquitetura
+
+A arquitetura foi projetada para transformar dados públicos originalmente operacionais em informações estruturadas para análise dos preços de materiais da construção civil.
+
+Com esse fluxo, o ObraIndex busca permitir análises como:
+
+> **Como os preços dos materiais evoluem ao longo do tempo?**
+
+> **Quais materiais apresentam maior volatilidade?**
+
+> **Existem diferenças relevantes de preço entre estados e regiões?**
+
+> **Quais materiais apresentaram os maiores aumentos em determinado período?**
+
+O resultado é um pipeline reproduzível e organizado, conectando **Engenharia de Dados, análise de dados e Engenharia Civil**.
